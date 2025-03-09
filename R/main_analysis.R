@@ -1,5 +1,5 @@
 # Установка и загрузка необходимых пакетов
-install.packages(c("readxl", "forecast", "ggplot2", "tseries", "tidyverse", "tsibble", "fable", "randomForest"))
+# install.packages(c("readxl", "forecast", "ggplot2", "tseries", "tidyverse", "tsibble", "fable", "randomForest"))
 library(readxl)
 library(forecast)
 library(ggplot2)
@@ -10,18 +10,38 @@ library(fable)
 library(randomForest)
 
 # Загрузка данных
-data <- read_excel("export_fromRussia_billionUSD.xlsx")
-data_ts <- ts(data$Export, start = c(1994, 1), frequency = 12) # Преобразуем в временной ряд
+data <- read_excel("data/export_fromRussia_billionUSD.xlsx")
+str(data)
+# Переименовываем колонку для удобства
+colnames(data) <- c("Year", "Month", "Export")
 
-# 2. Визуализация исходного ряда
+# Преобразуем в временной ряд
+data_ts <- ts(data$Export, start = c(min(data$Year), 1), frequency = 12)
+
+# Проверяем временной ряд
 autoplot(data_ts) + ggtitle("Общий объем экспорта из РФ (млрд USD)")
+
+# Видно, что объем экспорта имеет выраженный тренд – общий рост с 1994 года, 
+# резкие колебания в кризисные периоды (например, 2008, 2014, 2020).
+# Также заметны всплески и падения, связанные с экономическими событиями.
 
 # Обычные и сезонные разности
 diff_ts <- diff(data_ts)  # Обычная разность
 diff_seasonal_ts <- diff(data_ts, lag = 12)  # Сезонная разность
 
 autoplot(diff_ts) + ggtitle("Обычная разность ряда")
+
+# После применения первой разности тренд убирается, но остается высокая изменчивость.
+# Временами дисперсия увеличивается, что может указывать на гетероскедастичность 
+# (неоднородность дисперсии).
+# Наличие больших выбросов предполагает экономические кризисы или значимые 
+# макроэкономические изменения.
+
 autoplot(diff_seasonal_ts) + ggtitle("Сезонная разность ряда")
+
+# Сезонная разность показывает значительные колебания, особенно после 2008 года.
+# Вероятно, сезонный компонент не является полностью стабильным во времени, что 
+# усложняет прогнозирование.
 
 # Компоненты ряда
 decomp <- stl(data_ts, s.window = "periodic")
@@ -30,6 +50,13 @@ autoplot(decomp)
 # ACF и PACF
 acf(data_ts, main = "ACF исходного ряда")
 pacf(data_ts, main = "PACF исходного ряда")
+
+acf(diff_ts, main = "ACF обычной разности")
+pacf(diff_ts, main = "PACF обычной разности")
+
+acf(diff_seasonal_ts, main = "ACF сезонной разности")
+pacf(diff_seasonal_ts, main = "PACF сезонной разности")
+
 
 # 3. Проверка стационарности
 adf.test(data_ts)
